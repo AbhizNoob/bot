@@ -1,58 +1,27 @@
-import asyncio
+request: {}'.format(str(e)))
+            else:
+                song = Song(source)
 
-import aiohttp
-from pydis_core import BotBase
-from sentry_sdk import push_scope
+                await ctx.voice_state.songs.put(song)
+                await ctx.send('Enqueued {}'.format(str(source)))
 
-from bot import constants, exts
-from bot.log import get_logger
+    @_join.before_invoke
+    @_play.before_invoke
+    async def ensure_voice_state(self, ctx: commands.Context):
+        if not ctx.author.voice or not ctx.author.voice.channel:
+            raise commands.CommandError('You are not connected to any voice channel.')
 
-log = get_logger("bot")
-
-
-class StartupError(Exception):
-    """Exception class for startup errors."""
-
-    def __init__(self, base: Exception):
-        super().__init__()
-        self.exception = base
+        if ctx.voice_client:
+            if ctx.voice_client.channel != ctx.author.voice.channel:
+                raise commands.CommandError('Bot is already in a voice channel.')
 
 
-class Bot(BotBase):
-    """A subclass of `pydis_core.BotBase` that implements bot-specific functions."""
+bot = commands.Bot('music.', description='Yet another music bot.')
+bot.add_cog(Music(bot))
 
-    def __init__(self, *args, **kwargs):
 
-        super().__init__(*args, **kwargs)
+@bot.event
+async def on_ready():
+    print('Logged in as:\n{0.user.name}\n{0.user.id}'.format(bot))
 
-    async def ping_services(self) -> None:
-        """A helper to make sure all the services the bot relies on are available on startup."""
-        # Connect Site/API
-        attempts = 0
-        while True:
-            try:
-                log.info(f"Attempting site connection: {attempts + 1}/{constants.URLs.connect_max_retries}")
-                await self.api_client.get("healthcheck")
-                break
-
-            except (aiohttp.ClientConnectorError, aiohttp.ServerDisconnectedError):
-                attempts += 1
-                if attempts == constants.URLs.connect_max_retries:
-                    raise
-                await asyncio.sleep(constants.URLs.connect_cooldown)
-
-    async def setup_hook(self) -> None:
-        """Default async initialisation method for discord.py."""
-        await super().setup_hook()
-        await self.load_extensions(exts)
-
-    async def on_error(self, event: str, *args, **kwargs) -> None:
-        """Log errors raised in event listeners rather than printing them to stderr."""
-        self.stats.incr(f"errors.event.{event}")
-
-        with push_scope() as scope:
-            scope.set_tag("event", event)
-            scope.set_extra("args", args)
-            scope.set_extra("kwargs", kwargs)
-
-            log.exception(f"Unhandled exception in {event}.")
+bot.run('MTE0NTMwNDM0ODU5NTg0NzIzOQ.GMn5ch.DKjh9RlTNuG5UQAeWs5yIBt-d24Bry-0TgZ1Kw')
